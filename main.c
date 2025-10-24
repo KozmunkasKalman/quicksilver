@@ -1,55 +1,28 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <ctype.h>
-#include <regex.h>
+#include <stdbool.h>
+#include <string.h>
+#include <assert.h>
 
 
 
-typedef enum {
-  EXIT,
-} TypeKeyword;
-
-typedef enum {
-  INT,  
-} TypeLiteral;
-
-typedef enum {
-  NEWLINE,
-  OPEN_PARENTHESES,
-  CLOSE_PARENTHESES,
-} TypeSeparator;
-
-typedef struct {
-  TypeKeyword type;
-} TokenKeyword;
-
-typedef struct {
-  TypeLiteral type;
-  int value;
-} TokenLiteral;
-
-typedef struct {
-  TypeSeparator type;
-} TokenSeparator;
-
-
-
-void tokenize(char current) {
-  if (current == 0xA) { // newline
-    printf("\n");
-  } else if ( current == 0x20) { // space
-    printf("\n");
-  } else if ( current == 0x9) { // tabulator
-    printf("\n");
-  } else if ( current == 0x28) { // opening parentheses
-    printf("\n(");
-  } else if ( current == 0x29) { // closing parentheses
-    printf("\n)");
-  } else if ( current == 0x3A) { // colon
-    printf("\n:");
-  } else {
-    printf("%c", current);
+void tokenize(char* content) {
+  if (content == NULL) {
+    printf("Error: File empty or failed to read.");
+    assert(1);
   }
+
+  // PLACEHOLDER - ai code, very bad
+  // TODO: write own code for this shit
+  for (int i = 0; content[i] != '\0'; i++) {
+    if (content[i] == ' ') {
+      content[i] = '\n';
+    }
+  }
+
+  // TODO: actually tokenize it
+
+  printf("%s", content);
 }
 
 
@@ -60,14 +33,15 @@ void readfile(char *argv) {
 
   if (file == NULL) {
     printf("Error: Failed to open file \"%s\".\nFile either doesn't exist or can't be read.\n", filename);
+    fclose(file);
   } else {
-    char current = fgetc(file);
-
-    while (current != EOF) {
-      tokenize(current);
-      current = fgetc(file);
-    }
-
+    fseek(file, 0, SEEK_END);
+    long n = ftell(file);
+    rewind(file);
+    char *content = malloc(n + 1);
+    fread(content, 1, n, file);
+    content[n] = '\0';
+    tokenize(content);
     fclose(file);
   }
 }
@@ -76,7 +50,7 @@ void readfile(char *argv) {
 
 int main(int argc, char *argv[]) {
   if (argc < 2) {
-    printf("Error: Incorrect usage, no input file given.\n> qsc <input.qs>\n");
+    printf("Error: Incorrect usage, no input file given.\n> qsc <input.qsr>\n");
     return 1;
   }
 
