@@ -34,7 +34,27 @@ typedef struct {
 
 
 
-void extractFileContents(char *argv) {
+void tokenize(char current) {
+  if (current == 0xA) { // newline
+    printf("\n");
+  } else if ( current == 0x20) { // space
+    printf("\n");
+  } else if ( current == 0x9) { // tabulator
+    printf("\n");
+  } else if ( current == 0x28) { // opening parentheses
+    printf("\n(");
+  } else if ( current == 0x29) { // closing parentheses
+    printf("\n)");
+  } else if ( current == 0x3A) { // colon
+    printf("\n:");
+  } else {
+    printf("%c", current);
+  }
+}
+
+
+
+void readfile(char *argv) {
   char *filename = argv;
   FILE *file = fopen(filename, "r");
 
@@ -44,32 +64,12 @@ void extractFileContents(char *argv) {
     char current = fgetc(file);
 
     while (current != EOF) {
-      if (current == 0xA) { // newline
-        printf("\n");
-      } else if ( current == 0x20) { // space
-        printf("\n");
-      } else if ( current == 0x9) { // tabulator
-        printf("\n");
-      } else if ( current == 0x28) { // opening parentheses
-        printf("\n(");
-      } else if ( current == 0x29) { // closing parentheses
-        printf("\n)");
-      } else if ( current == 0x3A) { // colon
-        printf("\n:");
-      } else {
-        printf("%c", current);
-      }
+      tokenize(current);
       current = fgetc(file);
     }
 
     fclose(file);
   }
-}
-
-
-
-void tokenize(char *contents) {
-  printf("%s", contents);
 }
 
 
@@ -80,9 +80,7 @@ int main(int argc, char *argv[]) {
     return 1;
   }
 
-  char contents[1000000];
-  extractFileContents(argv[1]);
-  tokenize(contents);
+  readfile(argv[1]);
 
   return 0;
 }
