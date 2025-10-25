@@ -1,4 +1,2 @@
-func init():
-  "Hello world\n"
-  exit 0
-.
+exit 69
+

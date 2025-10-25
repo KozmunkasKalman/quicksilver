@@ -2,4 +2,5 @@
 
 set -e
 
-gcc main.c -o qsc -Wall -Wextra
+# cmake -S . -B build/ &&
+cmake --build build/
