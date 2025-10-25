@@ -15,6 +15,29 @@ struct Token {
   std::optional<std::string> value {};
 };
 
+void assemble(const std::vector<Token>& tokens) {
+  std::stringstream output;
+  output << "global _start\n_start:\n";
+  for (int i = 0; i < tokens.size(); i++) {
+    const Token& token = tokens.at(i);
+    if (token.type == TokenType::exit) {
+      if (i + 1 < tokens.size() && tokens.at(i + 1).type == TokenType::int_lit) {
+        if (i + 2 < tokens.size() && tokens.at(i + 2).type == TokenType::newline) {
+          output << "    mov rax, 60\n";
+          output << "    mov rdi, " << tokens.at(i + 1).value.value() << "\n";
+          output << "    syscall";
+        }
+      }
+    }
+  }
+  std::fstream file("output.asm", std::ios::out);
+  file << output.str();
+  file.close();
+
+  system("nasm -felf64 output.asm");
+  system("ld output.o -o output");
+}
+
 std::vector<Token> tokenize(const std::string& str) {
   std::vector<Token> tokens;
   std::string b;
@@ -59,24 +82,6 @@ std::vector<Token> tokenize(const std::string& str) {
   return tokens;
 }
 
-std::string asmify(const std::vector<Token>& tokens) {
-  std::stringstream output;
-  output << "global _start\n_start:\n";
-  for (int i = 0; i < tokens.size(); i++) {
-    const Token& token = tokens.at(i);
-    if (token.type == TokenType::exit) {
-      if (i + 1 < tokens.size() && tokens.at(i + 1).type == TokenType::int_lit) {
-        if (i + 2 < tokens.size() && tokens.at(i + 2).type == TokenType::newline) {
-          output << "    mov rax, 60\n";
-          output << "    mov rdi, " << tokens.at(i + 1).value.value() << "\n";
-          output << "    syscall";
-        }
-      }
-    }
-  }
-  return output.str();
-}
-
 int main(int argc, char* argv[]) {
   if (argc != 2) {
     std::cerr << "Error: Incorrect usage.\nCorrect usage:\nqsc <input.qsv>" << std::endl;
@@ -92,12 +97,7 @@ int main(int argc, char* argv[]) {
 
   std::vector<Token> tokens = tokenize(contents);
 
-  std::fstream output("output.asm", std::ios::out);
-  output << asmify(tokens);
-  output.close();
-
-  system("nasm -felf64 output.asm");
-  system("ld output.o -o output");
+  assemble(tokens);
 
   return 0;
 }
