@@ -4,16 +4,7 @@
 #include <optional>
 #include <vector>
 
-enum class TokenType {
-  exit,
-  int_lit,
-  newline
-};
-
-struct Token {
-  TokenType type;
-  std::optional<std::string> value {};
-};
+#include "tokenizer.hpp"
 
 void assemble(const std::vector<Token>& tokens) {
   std::stringstream output;
@@ -38,50 +29,6 @@ void assemble(const std::vector<Token>& tokens) {
   system("ld output.o -o output");
 }
 
-std::vector<Token> tokenize(const std::string& str) {
-  std::vector<Token> tokens;
-  std::string b;
-  for (int i = 0; i < str.length(); i++) {
-    char c = str.at(i);
-    if (std::isalpha(c)) {
-      b.push_back(c);
-      i++;
-      while (std::isalnum(str.at(i))) {
-        b.push_back(str.at(i));
-        i++;
-      }
-      i--;
-
-      if (b == "exit") {
-        tokens.push_back({.type = TokenType::exit});
-        b.clear();
-        continue;
-      } else {
-        std::cerr << "Error" << std::endl;
-        exit(1);
-      }
-    } else if (std::isdigit(c)) {
-      b.push_back(c);
-      i++;
-      while (std::isdigit(str.at(i))) {
-        b.push_back(str.at(i));
-        i++;
-      }
-      i--;
-      tokens.push_back({.type = TokenType::int_lit, .value = b});
-      b.clear();
-    } else if (c == 0x0A) {
-      tokens.push_back({.type = TokenType::newline});
-    } else if (std::isspace(c)) {
-      continue;
-    } else {
-      std::cerr << "Error" << std::endl;
-      exit(1);
-    }
-  }
-  return tokens;
-}
-
 int main(int argc, char* argv[]) {
   if (argc != 2) {
     std::cerr << "Error: Incorrect usage.\nCorrect usage:\nqsc <input.qsv>" << std::endl;
@@ -95,7 +42,8 @@ int main(int argc, char* argv[]) {
   input.close();
   contents = contents_stream.str();
 
-  std::vector<Token> tokens = tokenize(contents);
+  Tokenizer tokenizer(std::move(contents));
+  std::vector<Token> tokens = tokenizer.tokenize();
 
   assemble(tokens);
 
