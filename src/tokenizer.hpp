@@ -1,9 +1,10 @@
 #pragma once
 
 #include <iostream>
-#include <string>
-#include <vector>
+#include <fstream>
+#include <sstream>
 #include <optional>
+#include <vector>
 #include <cctype>
 
 enum class TokenType {
@@ -49,10 +50,10 @@ public:
         continue;
       } else if (peek().value() == 0x0A) { // is line end
         tokens.push_back({.type = TokenType::newline});
-	m_index++;
+        absorb();
         continue;
       } else if (std::isspace(peek().value())) { // is space
-	m_index++;
+        m_index++;
         continue;
       } else {
         std::cerr << "Error: Unable to handle character at " << m_index << std::endl;
@@ -64,20 +65,19 @@ public:
   }
 
 private:
-  std::optional<char> peek(int offset = 0) const {
+  inline std::optional<char> peek(int offset = 0) const {
     if (m_index + offset >= m_source.length()) {
       return std::nullopt;
     } else {
       return m_source.at(m_index + offset);
     }
-    (void) offset;
   }
 
-  char absorb() {
+  inline char absorb() {
     return m_source.at(m_index++);
   }
 
-  std::string m_source;
+  const std::string m_source;
 
   int m_index = 0;
 };
