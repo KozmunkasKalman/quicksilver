@@ -3,7 +3,6 @@
 #include <sstream>
 #include <optional>
 #include <vector>
-#include <cctype>
 
 #include "tokenizer.hpp"
 #include "parser.hpp"
@@ -41,15 +40,15 @@ int main(int argc, char* argv[]) {
   std::vector<Token> tokens = tokenizer.tokenize();
 
   Parser parser(std::move(tokens));
-  std::optional<NodeExit> tree = parser.parse();
+  std::optional<NodeProg> program = parser.parse_prog();
 
-  if (!tree.has_value()) {
-    std::cerr << "Error: Unable to find a valid exit statement." << std::endl;
+  if (!program.has_value()) {
+    std::cerr << "Error: Invalid program." << std::endl;
     exit(1);
   }
 
-  Generator generator(std::move(tree.value()));
-  std::string output = generator.generate();
+  Generator generator(std::move(program.value()));
+  std::string output = generator.generate_program();
 
   assemble(output);
 

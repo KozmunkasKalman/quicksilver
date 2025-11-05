@@ -10,6 +10,13 @@
 enum class TokenType {
   exit,
   int_lit,
+  ident,
+  var,
+  equals,
+  parentheses_open,
+  parentheses_close,
+  colon,
+  period,
   newline
 };
 
@@ -24,7 +31,7 @@ public:
 
   inline std::vector<Token> tokenize() {
     std::vector<Token> tokens;
-    std::string b;
+    std::string b; // buffer
 
     while (peek().has_value()) {
       if (std::isalpha(peek().value())) { // is letters
@@ -36,9 +43,14 @@ public:
           tokens.push_back({.type = TokenType::exit});
           b.clear();
           continue;
+        } else if (b == "var"){
+          tokens.push_back({.type = TokenType::var});
+          b.clear();
+          continue;
         } else {
-          std::cerr << "Error: Invalid keyword found." << std::endl;
-          exit(1);
+          tokens.push_back({.type = TokenType::ident, .value = b});
+          b.clear();
+          continue;
         }
       } else if (std::isdigit(peek().value())) { // is number
         b.push_back(absorb());
@@ -48,9 +60,29 @@ public:
         tokens.push_back({.type = TokenType::int_lit, .value = b});
         b.clear();
         continue;
-      } else if (peek().value() == 0x0A) { // is line end
-        tokens.push_back({.type = TokenType::newline});
+      } else if (peek().value() == '=') {
         absorb();
+        tokens.push_back({.type = TokenType::equals});
+        continue;
+      } else if (peek().value() == '(') {
+        absorb();
+        tokens.push_back({.type = TokenType::parentheses_open});
+        continue;
+      } else if (peek().value() == ')') {
+        absorb();
+        tokens.push_back({.type = TokenType::parentheses_close});
+        continue;
+      } else if (peek().value() == ':') {
+        absorb();
+        tokens.push_back({.type = TokenType::colon});
+        continue;
+      } else if (peek().value() == '.') {
+        absorb();
+        tokens.push_back({.type = TokenType::period});
+        continue;
+      } else if (peek().value() == 0x0A) { // is line end
+        absorb();
+        tokens.push_back({.type = TokenType::newline});
         continue;
       } else if (std::isspace(peek().value())) { // is space
         m_index++;
