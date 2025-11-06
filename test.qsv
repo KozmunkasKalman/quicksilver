@@ -1,1 +1,2 @@
-exit 67
+var x = 67
+exit x

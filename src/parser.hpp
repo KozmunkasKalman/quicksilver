@@ -28,7 +28,7 @@ public:
     }
   }
 
-  std::optional<NodeStmt> parse_statement() {
+  std::optional<NodeStmt> parse_stmt() {
     if (peek().has_value() && peek().value().type == TokenType::exit) {
       absorb();
       NodeStmtExit stmt_exit;
@@ -75,7 +75,7 @@ public:
     NodeProg prog;
 
     while (peek().has_value()) {
-      if (auto stmt = parse_statement()) {
+      if (auto stmt = parse_stmt()) {
         prog.stmts.push_back(stmt.value());
       } else {
         std::cerr << "Error: Invalid statement." << std::endl;
