@@ -50,8 +50,8 @@ func init():
   var y = 41
 
   #can also be reformatted like the following:
-  if x = 41: "mango", #"if"
-  if x > 41: "mustard", #"else if"
+  if y = 41: "mango", #"if"
+  if y > 41: "mustard", #"else if"
   "sheofs fat penguin 320kg"; #"else"
 .
 ```
