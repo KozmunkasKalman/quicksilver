@@ -47,7 +47,7 @@ func init():
     "shefos fat penguin 320kg"
   ;
 
-  var y = 41
+  var y 41
 
   #can also be reformatted like the following:
   if y = 41: "mango", #"if"
