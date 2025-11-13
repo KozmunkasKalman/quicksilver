@@ -13,7 +13,7 @@ func init():
   exit 0
 .
 ```
-very similar to "int main(){return 0;}" in C, but it forcefully exits the program
+very similar to ``int main(){return 0;}`` in C, but it forcefully exits the program
 
 Variables:
 ```qsv
