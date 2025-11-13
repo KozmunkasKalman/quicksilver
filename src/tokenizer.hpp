@@ -13,11 +13,15 @@ enum class TokenType {
   ident,
   var,
   equals,
+  plus,
+  minus,
+  et,
+  comma,
+  semicolon,
   parentheses_open,
   parentheses_close,
   colon,
-  period,
-  newline
+  period
 };
 
 struct Token {
@@ -40,15 +44,15 @@ public:
           b.push_back(absorb());
         }
         if (b == "exit") {
-          tokens.push_back({.type = TokenType::exit});
+          tokens.push_back( { .type = TokenType::exit } );
           b.clear();
           continue;
         } else if (b == "var"){
-          tokens.push_back({.type = TokenType::var});
+          tokens.push_back( { .type = TokenType::var } );
           b.clear();
           continue;
         } else {
-          tokens.push_back({.type = TokenType::ident, .value = b});
+          tokens.push_back( { .type = TokenType::ident, .value = b } );
           b.clear();
           continue;
         }
@@ -57,35 +61,47 @@ public:
         while (peek().has_value() && std::isdigit(peek().value())) {
           b.push_back(absorb());
         }
-        tokens.push_back({.type = TokenType::int_lit, .value = b});
+        tokens.push_back( { .type = TokenType::int_lit, .value = b } );
         b.clear();
+        continue;
+      } else if (peek().value() == '+') {
+        absorb();
+        tokens.push_back( { .type = TokenType::plus } );
+        continue;
+      } else if (peek().value() == '-') {
+        absorb();
+        tokens.push_back( { .type = TokenType::minus } );
         continue;
       } else if (peek().value() == '=') {
         absorb();
-        tokens.push_back({.type = TokenType::equals});
+        tokens.push_back( { .type = TokenType::equals } );
+        continue;
+      } else if (peek().value() == '&') {
+        absorb();
+        tokens.push_back( { .type = TokenType::et } );
         continue;
       } else if (peek().value() == '(') {
         absorb();
-        tokens.push_back({.type = TokenType::parentheses_open});
+        tokens.push_back( { .type = TokenType::parentheses_open } );
         continue;
       } else if (peek().value() == ')') {
         absorb();
-        tokens.push_back({.type = TokenType::parentheses_close});
+        tokens.push_back( { .type = TokenType::parentheses_close } );
         continue;
       } else if (peek().value() == ':') {
         absorb();
-        tokens.push_back({.type = TokenType::colon});
+        tokens.push_back( { .type = TokenType::colon } );
         continue;
       } else if (peek().value() == '.') {
         absorb();
-        tokens.push_back({.type = TokenType::period});
+        tokens.push_back( { .type = TokenType::period } );
         continue;
       } else if (peek().value() == 0x0A) { // is line end
         absorb();
-        tokens.push_back({.type = TokenType::newline});
+        //tokens.push_back( { .type = TokenType::newline } );
         continue;
       } else if (std::isspace(peek().value())) { // is space
-        m_index++;
+        absorb();
         continue;
       } else {
         std::cerr << "Error: Unable to handle character at " << m_index << std::endl;

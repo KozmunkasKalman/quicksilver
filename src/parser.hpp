@@ -38,31 +38,18 @@ public:
         std::cerr << "Error: Invalid expression." << std::endl;
         exit(1);
       }
-      if (peek().has_value() && peek().value().type == TokenType::newline) {
-        absorb();
-      } else {
-        std::cerr << "Error: Invalid expression." << std::endl;
-        exit(1);
-      }
       return NodeStmt {.var = stmt_exit};
     } else if (
       peek().has_value() && peek().value().type == TokenType::var &&
-      peek(1).has_value() && peek(1).value().type == TokenType::ident &&
-      peek(2).has_value() && peek(2).value().type == TokenType::equals) {
+      peek(1).has_value() && peek(1).value().type == TokenType::ident
+      ) {
 
       absorb();
       auto stmt_var = NodeStmtVar {.ident = absorb()};
-      absorb();
       if (auto expr = parse_expr()) {
         stmt_var.expr = expr.value();
       } else {
         std::cerr << "Error: Invalid expression." << std::endl;
-        exit(1);
-      }
-      if (peek().has_value() && peek().value().type == TokenType::newline) {
-        absorb();
-      } else {
-        std::cerr << "Error: Expected newline." << std::endl;
         exit(1);
       }
       return NodeStmt {.var = stmt_var};

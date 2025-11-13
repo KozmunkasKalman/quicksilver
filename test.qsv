@@ -1,2 +1,2 @@
-var x = 67
+var x 41
 exit x
