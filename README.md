@@ -13,7 +13,6 @@ Printing:
 exit 0 #exit statement required in every program, or else it intentionally segfaults
 ```
 printing inspired by HolyC
-
 very similar to ``int main(){printf("hello world\n"); return 0;}`` in C, but the `exit` statement forcefully exits the program
 
 
@@ -33,27 +32,30 @@ int x 67
 if x = 67: #"=" instead of "==", since singular equals sign isnt used for setting variables
   "mango", #comma separator
 if x < 67: #another "if" statement will basically act as an "else if" statement
-  "mustard", #if not followed by another if statement, code after this comma will be treated as an "else" statement
+  "mustard", #if not followed by another if statement, code after this comma will be treated
+             #as an "else" statement
   "shefos fat penguin 320kg"; #semicolon closes off if/while/switch statements
 ```
 
 
 Functions:
 ```qsv
-func int squareroot(int input): #function declaration, output data type class, function identifier,
-                                #parentheses for input(s), colon
+func int squareroot(int input): #function declaration, output data type class, function
+                                #identifier, parentheses for input(s), and a colon
   flt half 0.5
-  flt output input.flt()^half #floating point number variable "output" will be the input turned into a float, raised
-                              #to the power of 0.5
+  flt output input.flt()^half #floating point number variable "output" will be the input
+                              #turned into a float, raised to the power of 0.5
   return output.int() #"return" statement can be used to return values out of a function
-                      #in this case it turns the "output" float variable into an integer and returns that
+                      #in this case it turns the "output" float variable into an integer and
+                      #returns that
 . #functions are closed with periods
 
-#if you want to use functions at all, you will need to also declare an "init" function with the data type
-#class of "null", preferably towards the bottom of the file, so it can call other functions
+#if you want to use functions at all, you will need to also declare an "init" function with
+#the data type class of "null", preferably towards the bottom of the file, so it can call
+#other functions
 
-func null init(): #similar to C "main", but here the function doesnt need to return anything, as in quicksilver
-                  #you use an "exit" statement.
+func null init(): #similar to C "main", but here the function doesnt need to return anything,
+                  #as in quicksilver you use an "exit" statement.
 
   myfirstfunction() #functions declared above current function can be called like so
   mysecondfunction(67, 41, "mango") #input into function handled as such
