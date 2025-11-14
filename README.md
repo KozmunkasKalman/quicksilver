@@ -12,7 +12,8 @@ Printing:
 "hello world\n" #strings by themselves are printed out, no print statement needed
 exit 0 #exit statement required in every program, or else it intentionally segfaults
 ```
-printing inspired by HolyC
+printing inspired by HolyC,
+
 very similar to ``int main(){printf("hello world\n"); return 0;}`` in C, but the `exit` statement forcefully exits the program
 
 Variables:
@@ -44,7 +45,6 @@ func int squareroot(int input): #function declaration, output data type class, f
   return output.int() #"return" statement can be used to return values out of a function
                       #in this case it turns the "output" float variable into an integer and returns that
 . #functions are closed with periods
-
 
 #if you want to use functions at all, you will need to also declare an "init" function with the data type
 #class of "null", preferably towards the bottom of the file, so it can call other functions
