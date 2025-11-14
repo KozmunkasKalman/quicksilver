@@ -60,7 +60,8 @@ func null init(): #similar to C "main", but here the function doesnt need to ret
 
   int x square_root(9)
   exit x # should exit with 9
-.```
+.
+```
 
 
 Unsure how to handle variable value printing, currently the concept is similar to ansi escape codes (``\[variable name]``, ``"foo: \bar\n"``), but that makes specific variables (such as "n") unprintable, and the standard ``"${foo}\n"`` would be ugly, so I need to come up with a better solution for that.
