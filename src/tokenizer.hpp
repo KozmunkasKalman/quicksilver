@@ -8,10 +8,17 @@
 #include <cctype>
 
 enum class TokenType {
-  exit,
   int_lit,
   ident,
-  var,
+  //keywords
+  func,
+  exit,
+  //variable types
+  _int,
+  _flt,
+  _str,
+  _null,
+  //symbols
   equals,
   plus,
   minus,
@@ -43,15 +50,31 @@ public:
         while (peek().has_value() && std::isalnum(peek().value())) {
           b.push_back(absorb());
         }
-        if (b == "exit") {
+        if (b == "func") {
+          tokens.push_back( { .type = TokenType::func } );
+          b.clear();
+          continue;
+        } else if (b == "exit") {
           tokens.push_back( { .type = TokenType::exit } );
           b.clear();
           continue;
-        } else if (b == "var"){
-          tokens.push_back( { .type = TokenType::var } );
+        } else if (b == "int"){
+          tokens.push_back( { .type = TokenType::_int } );
           b.clear();
           continue;
-        } else {
+        } else if (b == "flt"){
+          tokens.push_back( { .type = TokenType::_flt } );
+          b.clear();
+          continue;
+        } else if (b == "str"){
+          tokens.push_back( { .type = TokenType::_str } );
+          b.clear();
+          continue;
+        } else if (b == "null"){
+          tokens.push_back( { .type = TokenType::_null } );
+          b.clear();
+          continue;
+        } else { //identifier
           tokens.push_back( { .type = TokenType::ident, .value = b } );
           b.clear();
           continue;

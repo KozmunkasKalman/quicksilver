@@ -40,7 +40,7 @@ public:
       }
       return NodeStmt {.var = stmt_exit};
     } else if (
-      peek().has_value() && peek().value().type == TokenType::var &&
+      peek().has_value() && peek().value().type == TokenType::_int &&
       peek(1).has_value() && peek(1).value().type == TokenType::ident
       ) {
 
