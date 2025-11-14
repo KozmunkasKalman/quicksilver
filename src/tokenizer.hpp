@@ -50,6 +50,7 @@ public:
         while (peek().has_value() && std::isalnum(peek().value())) {
           b.push_back(absorb());
         }
+        // why the fuck do switch statements not accept strings even fucking bash does that... TODO: add switch statements to qs that support strings as input
         if (b == "func") {
           tokens.push_back( { .type = TokenType::func } );
           b.clear();

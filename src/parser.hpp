@@ -39,10 +39,9 @@ public:
         exit(1);
       }
       return NodeStmt {.var = stmt_exit};
-    } else if (
+    } else if ( // int
       peek().has_value() && peek().value().type == TokenType::_int &&
-      peek(1).has_value() && peek(1).value().type == TokenType::ident
-      ) {
+      peek(1).has_value() && peek(1).value().type == TokenType::ident) {
 
       absorb();
       auto stmt_var = NodeStmtVar {.ident = absorb()};
@@ -53,6 +52,23 @@ public:
         exit(1);
       }
       return NodeStmt {.var = stmt_var};
+    } else if ( // flt
+      peek().has_value() && peek().value().type == TokenType::_flt &&
+      peek(1).has_value() && peek(1).value().type == TokenType::ident) {
+
+      std::cerr << "Error: Floating point number data type class not implemented yet." << std::endl;
+      exit(1);
+    } else if ( // str
+      peek().has_value() && peek().value().type == TokenType::_str &&
+      peek(1).has_value() && peek(1).value().type == TokenType::ident) {
+
+      std::cerr << "Error: Character string data type class not implemented yet." << std::endl;
+      exit(1);
+    } else if ( // null
+      peek().has_value() && peek().value().type == TokenType::_null) {
+
+      std::cerr << "Error: Null data type class not implemented yet." << std::endl;
+      exit(1);
     } else {
       return {};
     }

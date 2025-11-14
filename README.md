@@ -7,56 +7,56 @@ Quicksilver is a programming language with the primary goals of speed and simpli
 
 ## Syntax concept examples:
 
-Returning an exitcode:
+Printing:
 ```qsv
-func init(): 
-  exit 0
-.
+"hello world\n" #strings by themselves are printed out, no print statement needed
+exit 0 #exit statement required in every program, or else it intentionally segfaults
 ```
-very similar to ``int main(){return 0;}`` in C, but it forcefully exits the program
+printing inspired by HolyC
+very similar to ``int main(){printf("hello world\n"); return 0;}`` in C, but the `exit` statement forcefully exits the program
 
 Variables:
 ```qsv
-func init():
-  var x 10 #initializes the "x" variable, with the initial value of 10
-           #if no value given, will be 0 by default
-  x + 1 #increments x by 1
-  exit x #will exit with the exitcode of 11
-.
+int x 10 #initializes the "x" variable, with the initial value of 10
+         #if no value given, will be 0 by default
+x + 1 #increments x by 1
+exit x #will exit with the exitcode of 11
 ```
-
-Printing:
-```qsv
-func init():
-  "hello world\n"
-  exit 0
-.
-```
-inspired by HolyC
 
 If/elif/else statements:
 ```qsv
-func init():
-  var x 67
-  
-  if x = 67: #"=" instead of "==", since singular equals sign isnt used for setting variables
-    "mango"
-  , if x < 67: #basically an "else if" statement
-    "mustard"
-  , #basically the "else" statement
-    "shefos fat penguin 320kg"
-  ;
+int x 67
 
-  var y 41
-
-  #can also be reformatted like the following:
-  if y = 41: "mango", #"if"
-  if y > 41: "mustard", #"else if"
-  "sheofs fat penguin 320kg"; #"else"
-.
+if x = 67: #"=" instead of "==", since singular equals sign isnt used for setting variables
+  "mango", #comma separator
+if x < 67: #another "if" statement will basically act as an "else if" statement
+  "mustard", #if not followed by another if statement, code after this comma will be treated as an "else" statement
+  "shefos fat penguin 320kg"; #semicolon closes off if/while/switch statements
 ```
-commas are used as "separators", and semicolons as closure to statements
 
-Kind of unsure if I should keep `var` for variables, or use separate data type declarations, such as `int` (signed integer), `pint` (unsigned [positive] integer), `flt` (floating point numbers), `str` (character string), `null` (basically HolyC U0, or Rust !), etc.
+Functions:
+```qsv
+func int squareroot(int input): #function declaration, output data type class, function identifier,
+                                #parentheses for input(s), colon
+  flt half 0.5
+  flt output input.flt()^half #floating point number variable "output" will be the input turned into a float, raised
+                              #to the power of 0.5
+  return output.int() #"return" statement can be used to return values out of a function
+                      #in this case it turns the "output" float variable into an integer and returns that
+. #functions are closed with periods
 
-Also unsure of how to handle variable value printing, currently the concept is similar to ansi escape codes (``\[variable name]``, ``"foo: \bar\n"``), but that makes specific variables (such as "n") unprintable, and the standard ``"${foo}\n"`` would be ugly, so I need to come up with a better solution for that.
+
+#if you want to use functions at all, you will need to also declare an "init" function with the data type
+#class of "null", preferably towards the bottom of the file, so it can call other functions
+
+func null init(): #similar to C "main", but here the function doesnt need to return anything, as in quicksilver
+                  #you use an "exit" statement.
+
+  myfirstfunction() #functions declared above current function can be called like so
+  mysecondfunction(67, 41, "mango") #input into function handled as such
+
+  int x square_root(9)
+  exit x # should exit with 9
+.```
+
+Unsure how to handle variable value printing, currently the concept is similar to ansi escape codes (``\[variable name]``, ``"foo: \bar\n"``), but that makes specific variables (such as "n") unprintable, and the standard ``"${foo}\n"`` would be ugly, so I need to come up with a better solution for that.
