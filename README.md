@@ -12,9 +12,10 @@ Printing:
 "hello world\n" #strings by themselves are printed out, no print statement needed
 exit 0 #exit statement required in every program, or else it intentionally segfaults
 ```
-printing inspired by HolyC,
+printing inspired by HolyC
 
 very similar to ``int main(){printf("hello world\n"); return 0;}`` in C, but the `exit` statement forcefully exits the program
+
 
 Variables:
 ```qsv
@@ -23,6 +24,7 @@ int x 10 #initializes the "x" variable, with the initial value of 10
 x + 1 #increments x by 1
 exit x #will exit with the exitcode of 11
 ```
+
 
 If/elif/else statements:
 ```qsv
@@ -34,6 +36,7 @@ if x < 67: #another "if" statement will basically act as an "else if" statement
   "mustard", #if not followed by another if statement, code after this comma will be treated as an "else" statement
   "shefos fat penguin 320kg"; #semicolon closes off if/while/switch statements
 ```
+
 
 Functions:
 ```qsv
@@ -58,5 +61,6 @@ func null init(): #similar to C "main", but here the function doesnt need to ret
   int x square_root(9)
   exit x # should exit with 9
 .```
+
 
 Unsure how to handle variable value printing, currently the concept is similar to ansi escape codes (``\[variable name]``, ``"foo: \bar\n"``), but that makes specific variables (such as "n") unprintable, and the standard ``"${foo}\n"`` would be ugly, so I need to come up with a better solution for that.
