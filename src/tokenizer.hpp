@@ -8,12 +8,15 @@
 #include <cctype>
 
 enum class TokenType {
+  //literals
   int_lit,
+  flt_lit,
+  str_lit,
   ident,
   //keywords
   func,
   exit,
-  //variable types
+  //data type classes
   _int,
   _flt,
   _str,
@@ -80,12 +83,26 @@ public:
           b.clear();
           continue;
         }
-      } else if (std::isdigit(peek().value())) { // is number
+      } else if (std::isdigit(peek().value())) { // is integer
         b.push_back(absorb());
         while (peek().has_value() && std::isdigit(peek().value())) {
           b.push_back(absorb());
         }
         tokens.push_back( { .type = TokenType::int_lit, .value = b } );
+        b.clear();
+        continue;
+      } else if (peek().value() == '"') { // is string
+        absorb();
+        while (peek().has_value() && peek().value() != '"') {
+          if (peek().value() != EOF) {
+            b.push_back(absorb());
+          } else {
+            std::cerr << "Error: String was never closed off" << std::endl;
+            exit(1);
+          }
+        }
+        absorb();
+        tokens.push_back( { .type = TokenType::str_lit, .value = b } );
         b.clear();
         continue;
       } else if (peek().value() == '+') {
