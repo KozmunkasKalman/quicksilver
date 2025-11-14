@@ -12,8 +12,7 @@ Printing:
 "hello world\n" #strings by themselves are printed out, no print statement needed
 exit 0 #exit statement required in every program, or else it intentionally segfaults
 ```
-printing inspired by HolyC
-very similar to ``int main(){printf("hello world\n"); return 0;}`` in C, but the `exit` statement forcefully exits the program
+printing inspired by HolyC, program itself is similar to ``int main(){printf("hello world\n"); return 0;}`` in C, but the `exit` statement forcefully exits the program
 
 
 Variables:
