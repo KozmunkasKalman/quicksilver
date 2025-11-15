@@ -2,7 +2,7 @@
 
 #include <variant>
 
-#include "tokenizer.hpp"
+#include "lexer.hpp"
 
 struct NodeExprIntLit { Token int_lit; };
 struct NodeExprIdent { Token ident; };
