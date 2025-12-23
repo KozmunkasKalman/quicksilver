@@ -7,6 +7,7 @@
 #include "lexer.hpp"
 #include "parser.hpp"
 #include "generator.hpp"
+#include "arena.hpp"
 
 std::string read_file(char* input_file) {
   std::string contents;
@@ -19,18 +20,22 @@ std::string read_file(char* input_file) {
   return contents;
 }
 
-void assemble(std::string code) {
-  std::fstream file("output.asm", std::ios::out);
+void assemble(std::string code, const std::string& output = "output") {
+  std::fstream file(output + ".asm", std::ios::out);
   file << code;
   file.close();
 
-  system("nasm -felf64 output.asm");
-  system("ld output.o -o output");
+  std::string nasm_cmd = "nasm -felf64 " + output + ".asm";
+  std::string ld_cmd = "ld " + output + ".o -o " + output;
+
+  system(nasm_cmd.c_str());
+  system(ld_cmd.c_str());
 }
 
 int main(int argc, char* argv[]) {
-  if (argc != 2) {
-    std::cerr << "Error: Incorrect usage.\nCorrect usage:\nqsc <input.qsv>" << std::endl;
+  if (argc < 2) {
+    // TODO: implement flags such as -o for output, and -k to keep the .asm and .o files
+    std::cerr << "Error: Incorrect usage: No input file\nCorrect usage:\n  qsc <input.qsv> [<output>]" << std::endl;
     exit(1);
   }
 
@@ -48,9 +53,13 @@ int main(int argc, char* argv[]) {
   }
 
   Generator generator(std::move(program.value()));
-  std::string output = generator.generate_program();
+  std::string code = generator.generate_program();
 
-  assemble(output);
+  if (argc == 3) {
+    assemble(code, argv[2]);
+  } else {
+    assemble(code);
+  }
 
   return 0;
 }

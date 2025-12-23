@@ -8,60 +8,80 @@ class Generator {
 public:
   inline explicit Generator(NodeProg prog) : m_prog(std::move(prog)) {}
 
-  void gen_expr(const NodeExpr& expr) {
-    struct ExprVisitor {
+  void gen_term(const NodeTerm* term) {
+    struct TermVisitor {
       Generator* gen;
 
-      void operator() (const NodeExprIntLit& expr_int_lit) const {
-        gen->m_output << "    mov r10, " << expr_int_lit.int_lit.value.value() << "\n";
+      void operator() (const NodeTermIntLit* term_int_lit) const {
+        gen->m_output << "    mov r10, " << term_int_lit->int_lit.value.value() << "\n";
         gen->push("r10");
       }
-      void operator() (const NodeExprIdent& expr_ident) const {
-        if (!gen->m_vars.contains(expr_ident.ident.value.value())) {
-          std::cerr << "Error: Undeclared identifier: " << expr_ident.ident.value.value() << std::endl;
-          exit(EXIT_FAILURE);
+      void operator() (const NodeTermIdent* term_ident) const {
+        if (!gen->m_vars.contains(term_ident->ident.value.value())) {
+          std::cerr << "Error: Undeclared identifier: " << term_ident->ident.value.value() << std::endl;
+          exit(1);
         }
-        const auto& var = gen->m_vars.at(expr_ident.ident.value.value());
+        const auto& var = gen->m_vars.at(term_ident->ident.value.value());
         std::stringstream offset;
         offset << "QWORD [rsp + " << (gen->m_stack_size - var.stack_loc - 1) * 8 << "]\n";
         gen->push(offset.str());
       }
     };
-
-    ExprVisitor visitor {.gen = this};
-    std::visit(visitor, expr.var);
+    TermVisitor visitor({.gen = this});
+    std::visit(visitor, term->var);
   }
 
-  void gen_stmt(const NodeStmt& stmt) {
+  void gen_expr(const NodeExpr* expr) {
+    struct ExprVisitor {
+      Generator* gen;
+
+      void operator() (const NodeTerm* term) const {
+        gen->gen_term(term);
+      }
+      void operator() (const NodeBinExpr* bin_expr) const {
+        gen->gen_expr(bin_expr->add->ls);
+        gen->gen_expr(bin_expr->add->rs);
+        gen->pop("r10");
+        gen->pop("r11");
+        gen->m_output << "    add r10, r11\n";
+        gen->push("r10");
+      }
+    };
+
+    ExprVisitor visitor {.gen = this};
+    std::visit(visitor, expr->var);
+  }
+
+  void gen_stmt(const NodeStmt* stmt) {
     struct StmtVisitor {
       Generator* gen;
 
-      void operator() (const NodeStmtExit& stmt_exit) const {
-        gen->gen_expr(stmt_exit.expr);
+      void operator() (const NodeStmtExit* stmt_exit) const {
+        gen->gen_expr(stmt_exit->expr);
 
         gen->m_output << "    mov rax, 60\n";
         gen->pop("rdi");
         gen->m_output << "    syscall\n";
       }
-      void operator() (const NodeStmtVar& stmt_var) const {
-        if (gen->m_vars.contains(stmt_var.ident.value.value())) {
-          std::cerr << "Error: Identifier already used: " << stmt_var.ident.value.value() << std::endl;
+      void operator() (const NodeStmtVar* stmt_var) const {
+        if (gen->m_vars.contains(stmt_var->ident.value.value())) {
+          std::cerr << "Error: Identifier already used: " << stmt_var->ident.value.value() << std::endl;
           exit(1);
         }
 
-        gen->m_vars.insert({stmt_var.ident.value.value(), Var {.stack_loc = gen->m_stack_size} });
-        gen->gen_expr(stmt_var.expr);
+        gen->m_vars.insert( { stmt_var->ident.value.value(), Var { .stack_loc = gen->m_stack_size } } );
+        gen->gen_expr(stmt_var->expr);
       }
     };
 
     StmtVisitor visitor {.gen = this};
-    std::visit(visitor, stmt.var);
+    std::visit(visitor, stmt->var);
   }
 
   std::string generate_program() {
     m_output << "global _start\n_start:\n";
 
-    for (const NodeStmt& stmt : m_prog.stmts) {
+    for (const NodeStmt* stmt : m_prog.stmts) {
       gen_stmt(stmt);
     }
 

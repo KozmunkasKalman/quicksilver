@@ -25,6 +25,7 @@ enum class TokenType {
   equals,
   plus,
   minus,
+  div,
   et,
   comma,
   semicolon,
@@ -62,6 +63,7 @@ public:
           tokens.push_back( { .type = TokenType::exit } );
           b.clear();
           continue;
+          // TODO: make types semi-direct: null0, bool1, int(2^(0-6)), flt64, str(2^(3-6))
         } else if (b == "int"){
           tokens.push_back( { .type = TokenType::_int } );
           b.clear();
@@ -105,6 +107,10 @@ public:
         tokens.push_back( { .type = TokenType::str_lit, .value = b } );
         b.clear();
         continue;
+      } else if (peek().value() == '=') {
+        absorb();
+        tokens.push_back( { .type = TokenType::equals } );
+        continue;
       } else if (peek().value() == '+') {
         absorb();
         tokens.push_back( { .type = TokenType::plus } );
@@ -113,9 +119,10 @@ public:
         absorb();
         tokens.push_back( { .type = TokenType::minus } );
         continue;
-      } else if (peek().value() == '=') {
+      // multiplication done by juxtaposition of two variables or integer literals separated by space
+      } else if (peek().value() == '/') {
         absorb();
-        tokens.push_back( { .type = TokenType::equals } );
+        tokens.push_back( { .type = TokenType::div } );
         continue;
       } else if (peek().value() == '&') {
         absorb();
