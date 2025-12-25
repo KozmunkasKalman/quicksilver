@@ -10,9 +10,9 @@ struct NodeTermIntLit { Token int_lit; };
 struct NodeTermIdent { Token ident; };
 struct NodeTerm { std::variant<NodeTermIntLit*, NodeTermIdent*> var; };
 struct NodeBinExprAdd { NodeExpr* ls; NodeExpr* rs; };
-//struct NodeBinExprMult { NodeExpr* ls; NodeExpr* rs; };
-//struct NodeBinExpr { std::variant<NodeBinExprAdd*, NodeBinExprMult*> var; };
-struct NodeBinExpr { NodeBinExprAdd* add; };
+struct NodeBinExprSub { NodeExpr* ls; NodeExpr* rs; };
+struct NodeBinExprMult { NodeExpr* ls; NodeExpr* rs; };
+struct NodeBinExpr { std::variant<NodeBinExprAdd*, NodeBinExprSub*, NodeBinExprMult*> var; };
 struct NodeExpr { std::variant<NodeTerm*, NodeBinExpr*> var; };
 
 struct NodeStmtExit { NodeExpr* expr; };
@@ -55,7 +55,7 @@ public:
         absorb();
         if (auto rs = parse_expr()) {
           bin_expr_add->rs = rs.value();
-          bin_expr->add = bin_expr_add;
+          bin_expr->var = bin_expr_add;
           auto expr = m_allocator.alloc<NodeExpr>();
           expr->var = bin_expr;
           return expr;
@@ -63,6 +63,25 @@ public:
           std::cerr << "Error: Expected expression for `+` operator" << std::endl;
           exit(1);
         }
+      } else if (peek().has_value() && peek().value().type == TokenType::minus) {
+        std::cerr << "Error: Operator `-` not implemented yet" << std::endl;
+        exit(1);
+        // auto bin_expr = m_allocator.alloc<NodeBinExpr>();
+        // auto bin_expr_sub = m_allocator.alloc<NodeBinExprSub>();
+        // auto ls_expr = m_allocator.alloc<NodeExpr>();
+        // ls_expr->var = term.value();
+        // bin_expr_sub->ls = ls_expr;
+        // absorb();
+        // if (auto rs = parse_expr()) {
+        //   bin_expr_sub->rs = rs.value();
+        //   bin_expr->var = bin_expr_sub;
+        //   auto expr = m_allocator.alloc<NodeExpr>();
+        //   expr->var = bin_expr;
+        //   return expr;
+        // } else {
+        //   std::cerr << "Error: Expected expression for `-` operator" << std::endl;
+        //   exit(1);
+        // }
       } else {
         auto expr = m_allocator.alloc<NodeExpr>();
         expr->var = term.value();

@@ -31,6 +31,36 @@ public:
     std::visit(visitor, term->var);
   }
 
+  void gen_bin_expr(const NodeBinExpr* bin_expr) {
+    struct BinExprVisitor {
+      Generator* gen;
+
+      void operator() (const NodeBinExprAdd* add) const {
+        gen->gen_expr(add->ls);
+        gen->gen_expr(add->rs);
+        gen->pop("r10");
+        gen->pop("r11");
+        gen->m_output << "    add r10, r11\n";
+        gen->push("r10");
+      }
+      void operator() (const NodeBinExprSub* sub) const {
+        // gen->gen_expr(sub->ls);
+        // gen->gen_expr(sub->rs);
+        // gen->pop("r10");
+        // gen->pop("r11");
+        // gen->m_output << "    sub r10, r11\n";
+        // gen->push("r10");
+      }
+      void operator() (const NodeBinExprMult* mult) const {
+        std::cerr << "Error: operator `juxtaposition multiplication` not implemented yet" << std::endl;
+        exit(1);
+      }
+    };
+
+    BinExprVisitor visitor {.gen = this};
+    std::visit(visitor, bin_expr->var);
+  }
+
   void gen_expr(const NodeExpr* expr) {
     struct ExprVisitor {
       Generator* gen;
@@ -39,12 +69,7 @@ public:
         gen->gen_term(term);
       }
       void operator() (const NodeBinExpr* bin_expr) const {
-        gen->gen_expr(bin_expr->add->ls);
-        gen->gen_expr(bin_expr->add->rs);
-        gen->pop("r10");
-        gen->pop("r11");
-        gen->m_output << "    add r10, r11\n";
-        gen->push("r10");
+        gen->gen_bin_expr(bin_expr);
       }
     };
 

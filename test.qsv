@@ -1,4 +1,2 @@
-int x 60 
-int y 7
-int z x + y + 2
-exit z
+int x 10 + 5 + 4 + 7 + 3 + 12
+exit x
