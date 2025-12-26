@@ -20,7 +20,8 @@ enum class TokenType {
   _str,
   _null,
   // functional statements and calls
-  load, // <input_file> - loads a file, usually .hg quicksilver generic headers
+  load, // <input_file> - loads a files contents, usually .hg quicksilver generic headers,
+        //                can also be used to load files contents as an expression
   exit, // <int8>       - exits program with a mandatory exit code
   // functions
   func,              //    - keyword defines a function
@@ -82,10 +83,15 @@ public:
     std::string b; // buffer
 
     while (peek().has_value()) {
-      char c = peek().value();
-      if (std::isalpha(c)) { // letters
+      // first check if its a whitespace, if so then ignore it
+      if (std::isspace(peek().value())) { // space
+        absorb();
+      } else if (peek().value() == 0x0A) { // end of line
+        absorb();
+      // then check for keywords
+      } else if (std::isalpha(peek().value())) {
         b.push_back(absorb());
-        while (peek().has_value() && std::isalnum(c)) {
+        while (peek().has_value() && std::isalnum(peek().value())) {
           b.push_back(absorb());
         }
         // why the fuck do switch statements not accept strings even fucking bash does that
@@ -151,84 +157,109 @@ public:
           tokens.push_back( { .type = TokenType::ident, .value = b } );
           b.clear();
         }
-      } else if (c == '"') { // string
+      // then check for character strings
+      } else if (peek().value() == '"') { // string
         absorb();
-        while (peek().has_value() && c != '"') {
-          if (c != EOF) {
+        while (peek().has_value() && peek().value() != '"') {
+          if (peek().value() != EOF) {
             b.push_back(absorb());
           } else {
             std::cerr << "Error: String was never closed off" << std::endl;
             exit(1);
           }
+          tokens.push_back( { .type = TokenType::str_lit, .value = b } );
+          b.clear();
         }
         absorb();
         tokens.push_back( { .type = TokenType::str_lit, .value = b } );
         b.clear();
         continue;
-      } else if (std::ispunct(c)) { // symbol(s)
-        while (peek().has_value() && std::isgraph(c)) {
+      // then check for numbers
+      } else if (std::isdigit(peek().value())) { // number
+        b.push_back(absorb());
+        while (peek().has_value() && std::isdigit(peek().value())) {
           b.push_back(absorb());
         }
-        if (b == "(") {
-          tokens.push_back( { .type = TokenType::parentheses_open } );
-          b.clear();
-        } else if (b == ")") {
-          tokens.push_back( { .type = TokenType::parentheses_close } );
-          b.clear();
-        } else if (b == ",") {
-          tokens.push_back( { .type = TokenType::comma } );
-          b.clear();
-        } else if (b == ":") {
-          tokens.push_back( { .type = TokenType::colon } );
-          b.clear();
-        } else if (b == ";") {
-          tokens.push_back( { .type = TokenType::semicolon } );
-          b.clear();
-        } else if (b == ".") {
-          tokens.push_back( { .type = TokenType::period } );
-          b.clear();
-        } else if (b == "+") {
-          tokens.push_back( { .type = TokenType::plus } );
-          b.clear();
-        } else if (b == "-") {
-          tokens.push_back( { .type = TokenType::minus } );
-          b.clear();
-        // TODO: implement multiplication by juxtaposition of two expressions properly, for now its * since prototype implementation of it cause it to happen even upon variable declaration and it multiplied itself indefinitely
-        } else if (b == "*") {
-          tokens.push_back( { .type = TokenType::mult } );
-          b.clear();
-        } else if (b == "/") {
-          tokens.push_back( { .type = TokenType::div } );
-          b.clear();
-        } else if (b == "^") {
-          tokens.push_back( { .type = TokenType::power } );
-          b.clear();
-        } else if (b == "=") {
-          tokens.push_back( { .type = TokenType::equals } );
-          b.clear();
-        } else if (b == "<") {
-          tokens.push_back( { .type = TokenType::less } );
-          b.clear();
-        } else if (b == "<=") {
+        tokens.push_back( { .type = TokenType::int_lit, .value = b } );
+        b.clear();
+      // then check for single character symbols
+      } else if (peek().value() == '(') {
+        absorb();
+        tokens.push_back( { .type = TokenType::parentheses_open } );
+      } else if (peek().value() == ')') {
+        absorb();
+        tokens.push_back( { .type = TokenType::parentheses_close } );
+      } else if (peek().value() == ',') {
+        absorb();
+        tokens.push_back( { .type = TokenType::comma } );
+      } else if (peek().value() == ':') {
+        absorb();
+        tokens.push_back( { .type = TokenType::colon } );
+      } else if (peek().value() == ';') {
+        absorb();
+        tokens.push_back( { .type = TokenType::semicolon } );
+      } else if (peek().value() == '.') {
+        absorb();
+        tokens.push_back( { .type = TokenType::period } );
+      } else if (peek().value() == '+') {
+        absorb();
+        tokens.push_back( { .type = TokenType::plus } );
+      } else if (peek().value() == '-') {
+        absorb();
+        tokens.push_back( { .type = TokenType::minus } );
+      // TODO: imclement multiplication by juxtaposition of two expressions properly, for now its * since prototype implementation of it cause it to happen even upon variable declaration and it multiplied itself indefinitely
+      } else if (peek().value() == '*') {
+        absorb();
+        tokens.push_back( { .type = TokenType::mult } );
+      } else if (peek().value() == '/') {
+        absorb();
+        tokens.push_back( { .type = TokenType::div } );
+      } else if (peek().value() == '=') {
+        absorb();
+        tokens.push_back( { .type = TokenType::power } );
+      } else if (peek().value() == '=') {
+        absorb();
+        tokens.push_back( { .type = TokenType::equals } );
+      } else if (peek().value() == '<') {
+        absorb();
+        tokens.push_back( { .type = TokenType::less } );
+      } else if (peek().value() == '>') {
+        absorb();
+        tokens.push_back( { .type = TokenType::more } );
+      } else if (peek().value() == '!') {
+        absorb();
+        tokens.push_back( { .type = TokenType::excl } );
+      } else if (peek().value() == '&') {
+        absorb();
+        tokens.push_back( { .type = TokenType::et } );
+      } else if (peek().value() == '|') {
+        absorb();
+        tokens.push_back( { .type = TokenType::pipe } );
+      } else if (peek().value() == '$') {
+        absorb();
+        tokens.push_back( { .type = TokenType::dollar } );
+      } else if (peek().value() == '[') {
+        absorb();
+        tokens.push_back( { .type = TokenType::box_open } );
+      } else if (peek().value() == ']') {
+        absorb();
+        tokens.push_back( { .type = TokenType::box_close } );
+      } else if (peek().value() == '#') {
+        absorb();
+        tokens.push_back( { .type = TokenType::octothorpe } );
+      } else if (peek().value() == 0x5C) { // '\'
+        absorb();
+        tokens.push_back( { .type = TokenType::escape } );
+      // then check for multi character symbols
+      } else if (std::ispunct(peek().value())) { // symbol(s)
+        while (peek().has_value() && std::isgraph(peek().value())) {
+          b.push_back(absorb());
+        }
+        if (b == "<=") {
           tokens.push_back( { .type = TokenType::lessquals } );
-          b.clear();
-        } else if (b == ">") {
-          tokens.push_back( { .type = TokenType::more } );
           b.clear();
         } else if (b == ">=") {
           tokens.push_back( { .type = TokenType::morequals } );
-          b.clear();
-        } else if (b == "!") {
-          tokens.push_back( { .type = TokenType::excl } );
-          b.clear();
-        } else if (b == "&") {
-          tokens.push_back( { .type = TokenType::et } );
-          b.clear();
-        } else if (b == "|") {
-          tokens.push_back( { .type = TokenType::pipe } );
-          b.clear();
-        } else if (b == "$") {
-          tokens.push_back( { .type = TokenType::dollar } );
           b.clear();
         } else if (b == "->") {
           tokens.push_back( { .type = TokenType::returns } );
@@ -236,34 +267,8 @@ public:
         } else if (b == "<-") {
           tokens.push_back( { .type = TokenType::gets } );
           b.clear();
-        } else if (b == "[") {
-          tokens.push_back( { .type = TokenType::box_open } );
-          b.clear();
-        } else if (b == "]") {
-          tokens.push_back( { .type = TokenType::box_close } );
-          b.clear();
-        } else if (b == "#") {
-          tokens.push_back( { .type = TokenType::octothorpe } );
-          b.clear();
-        } else {
-          std::cerr << "Error: Unable to handle character(s) at " << m_index << std::endl;
-          exit(1);
         }
-      } else if (std::isdigit(c)) { // number
-        b.push_back(absorb());
-        while (peek().has_value() && std::isdigit(c)) {
-          b.push_back(absorb());
-        }
-        tokens.push_back( { .type = TokenType::int_lit, .value = b } );
-        b.clear();
-      } else if (c == 0x5C) { // backslash, ansi escape character
-        absorb();
-        tokens.push_back( { .type = TokenType::escape } );
-      } else if (c == 0x0A) { // end of line
-        absorb();
-        // tokens.push_back( { .type = TokenType::newline } );
-      } else if (std::isspace(c)) { // space
-        absorb();
+      // if neither matched throw an error
       } else {
         std::cerr << "Error: Unable to handle character at " << m_index << std::endl;
         exit(1);

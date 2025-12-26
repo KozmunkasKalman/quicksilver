@@ -5,6 +5,15 @@ Quicksilver is a programming language with the primary goals of speed and simpli
 > [!WARNING]
 > The Quicksilver compiler (qsc) is currently very early in development, as of the latest commit its only able to handle exit codes, and 8-bit unsigned integer variables on the stack, with basic addition.
 
+## Language concept:
+
+Inspired by multiple languages, such as Haskell, HolyC, and Python
+
+The Quicksilver programming language is designed to be simultaneously low and high level: it uses semi-direct types, while also having simple and readable syntax.
+
+My goal with this language is be able to compile the compiler with the compiler (rewrite the compiler in quicksilver and have it successfully compile). Eventually I'm planning to also make a shell interpreter for this, like `ghci` or `python`
+
+
 ## Syntax concept examples:
 
 Printing:
@@ -27,8 +36,8 @@ exit x    # will exit with the exitcode of 11
 Functions:
 ```qsv
 func do_stuff(int32 input): -> int32
-  # function declaration, output data type class, function
-  # identifier, parentheses for input(s), and a colon
+  # function declaration, function, input expressions with types in parentheses separated
+  # by commas, followed by a colon, and type to return
 
   [...] # imagine bunch of code here
 

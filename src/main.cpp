@@ -43,6 +43,9 @@ int main(int argc, char* argv[]) {
 
   Tokenizer tokenizer(std::move(contents));
   std::vector<Token> tokens = tokenizer.tokenize();
+  // nstead of std::move, just doing it like this would most likely be more efficient:
+  // Tokenizer tokenizer;
+  // std::vector<Token> tokens = tokenizer.tokenize(contents);
 
   Parser parser(std::move(tokens));
   std::optional<NodeProg> program = parser.parse_prog();
