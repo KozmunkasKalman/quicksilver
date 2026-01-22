@@ -30,17 +30,14 @@ enum class TokenType {
   _str,
   _null,
   // functional statements and calls
-  load, // <input_file> - loads a files contents, usually .hg quicksilver generic headers, similar to #include in c
-        //                can also be used to load files contents as an expression
-  exit, // <int8>       - exits program with a mandatory exit code
+  stmt_load,   // <filepath>     - loads a .hg generic header, similar to #include <...> in c
+  stmt_exit,   // <int8>         - exits program with a mandatory exit code
+  stmt_return, // [<expression>] - returns to the function call with the optional expression given
   // functions
   func,              //    - keyword defines a function
-  parentheses_open,  // (  - opens a functions input list
-  parentheses_close, // )  - closes a functions input list
-  comma,             // ,  - separates function inputs or logical statement clauses
   colon,             // :  - opens a functions or a logical statements scope
-  returns,           // . - defines the type class the function returns
-  gets,              // <- - passes to the function an arbitrary type class (idk why)
+  returns,           // -> - defines the type class the function returns
+  gets,              // <- - gets the value a function returns
   period,            // .  - closes a functions scope
   // logical statements and loops
   stmt_if,        // if a < 10: "a is less than 10\n",/;
@@ -48,11 +45,11 @@ enum class TokenType {
   stmt_else,      // else: "both a and b are at least 10\n";
   stmt_while,     // while x < 10: x + 1;
   stmt_for,       // TODO: plan syntax for "for" loops
-  stmt_select,    // select <input> from:
+  stmt_select,    // select <input expr> from:
   stmt_from,      //   case = "foo": "bar\n",
   stmt_case,      //   case < 7 | case > 17: "not between 7 and 17\n",
   stmt_otherwise, //   otherwise: "none matched\n";
-  semicolon,      // ; - closes logical statements and loops scopes
+  semicolon,      // ; - closes statement scopes
   // logical expressions
   _true,
   _false,
@@ -74,9 +71,12 @@ enum class TokenType {
   modulo, // %
   power,  // ^
   // misc symbols
-  ansi_escape,    // \ - used for ansi escape sequences
-  bracket_open,  // [
-  bracket_close, // ]
+  comma,             // , - separates function inputs and statement subscopes
+  parentheses_open,  // ( - opens a functions input list
+  parentheses_close, // ) - closes a functions input list
+  ansi_escape,       // \ - used for ansi escape sequences
+  bracket_open,      // [ - used for printing the value of a variable in a string
+  bracket_close,     // ]
 };
 
 struct Token {
@@ -214,11 +214,11 @@ std::vector<Token> tokenize(std::string source) {
       } else if (b == "func") { // function
         tokens.push_back( { .type = TokenType::func } );
         b.clear();
-      } else if (b == "load") { // load file
-        tokens.push_back( { .type = TokenType::load } );
+      } else if (b == "return") { // return statement
+        tokens.push_back( { .type = TokenType::stmt_return } );
         b.clear();
       } else if (b == "exit") { // exit call
-        tokens.push_back( { .type = TokenType::exit } );
+        tokens.push_back( { .type = TokenType::stmt_exit } );
         b.clear();
       } else if (b == "if") {
         tokens.push_back( { .type = TokenType::stmt_if } );
@@ -484,7 +484,7 @@ std::optional<NodeExpr*> parse_expr(std::vector<Token>& tokens, int& index) {
 }
 std::optional<NodeStmt*> parse_stmt(std::vector<Token>& tokens, int& index) {
   auto stmt = allocator.alloc<NodeStmt>();
-  if (peek_token(tokens, index).has_value() && peek_token(tokens, index).value().type == TokenType::exit) {
+  if (peek_token(tokens, index).has_value() && peek_token(tokens, index).value().type == TokenType::stmt_exit) {
     consume_token(tokens, index);
     auto stmt_exit = allocator.alloc<NodeStmtExit>();
     if (auto node_expr = parse_expr(tokens, index)) {
@@ -494,6 +494,9 @@ std::optional<NodeStmt*> parse_stmt(std::vector<Token>& tokens, int& index) {
       exit(1);
     }
     stmt->var = stmt_exit;
+  } else if (peek_token(tokens, index).has_value() && peek_token(tokens, index).value().type == TokenType::stmt_return) {
+    std::cerr << "Error: Statement `return` not implemented yet" << std::endl;
+    exit(1);
   } else if (peek_token(tokens, index).has_value() && peek_token(tokens, index).value().type == TokenType::_int && peek_token(tokens, index, 1).has_value() && peek_token(tokens, index, 1).value().type == TokenType::ident) {
     consume_token(tokens, index);
     auto stmt_var = allocator.alloc<NodeStmtVar>();
