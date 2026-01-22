@@ -12,7 +12,6 @@
 
 
 // globals
-int index = 0;
 ArenaAlloc allocator(1024 * 1024 * 8);
 
 
@@ -68,16 +67,16 @@ enum class TokenType {
   pipe,      // | "or"
   dollar,    // $ "xor"
   // math symbols
-  plus,  // +
-  minus, // -
-  mult,  // *
-  div,   // /
-  power, // ^
+  plus,   // +
+  minus,  // -
+  mult,   // *
+  div,    // /
+  modulo, // %
+  power,  // ^
   // misc symbols
   ansi_escape,    // \ - used for ansi escape sequences
   bracket_open,  // [
   bracket_close, // ]
-  octothorpe // # - marks text until end of line as comment
 };
 
 struct Token {
@@ -95,7 +94,9 @@ struct NodeTerm { std::variant<NodeTermIntLit*, NodeTermIdent*> var; };
 struct NodeBinExprAdd { NodeExpr* ls; NodeExpr* rs; };
 struct NodeBinExprSub { NodeExpr* ls; NodeExpr* rs; };
 struct NodeBinExprMult { NodeExpr* ls; NodeExpr* rs; };
-struct NodeBinExpr { std::variant<NodeBinExprAdd*, NodeBinExprSub*, NodeBinExprMult*> var; };
+struct NodeBinExprDiv { NodeExpr* ls; NodeExpr* rs; };
+struct NodeBinExprMod { NodeExpr* ls; NodeExpr* rs; };
+struct NodeBinExpr { std::variant<NodeBinExprAdd*, NodeBinExprSub*, NodeBinExprMult*, NodeBinExprDiv*, NodeBinExprMod*> var; };
 struct NodeExpr { std::variant<NodeTerm*, NodeBinExpr*> var; };
 
 struct NodeStmtExit { NodeExpr* expr; };
@@ -107,28 +108,26 @@ struct NodeProg { std::vector<NodeStmt> stmts; };
 
 
 // code generation
-struct Var {
-  size_t stack_loc;
-};
 size_t stack_size = 0;
+struct Var { size_t stack_loc; };
 std::unordered_map<std::string, Var> vars {};
 
 
 
 // helper functions
-std::optional<char> peek_char(std::string source, int offset = 0) {
+std::optional<char> peek_char(std::string& source, int index, int offset = 0) {
   if (index + offset >= source.length()) return std::nullopt;
-  else return source.at(index + offset);
+  return source.at(index + offset);
 }
-char consume_char(auto source) {
+char consume_char(std::string& source, int& index) {
   return source.at(index++);
 }
 
-std::optional<Token> peek_token(std::vector<Token> tokens, int offset = 0) {
+std::optional<Token> peek_token(std::vector<Token> tokens, int index, int offset = 0) {
   if (index + offset >= tokens.size()) return std::nullopt;
-  else return tokens[index + offset];
+  return tokens[index + offset];
 }
-Token consume_token(auto tokens) {
+Token consume_token(std::vector<Token> tokens, int& index) {
   return tokens[index++];
 }
 
@@ -142,6 +141,25 @@ std::string pop(const std::string& reg) {
   std::string output = "    pop " + reg + "\n";
   return output;
 }
+
+int get_precedence(TokenType type) {
+  switch (type) {
+    case TokenType::plus:
+    case TokenType::minus:
+      return 1;
+    case TokenType::mult:
+    case TokenType::div:
+    case TokenType::modulo:
+      return 2;
+    case TokenType::power:
+      return 3; // right-associative
+    default: return -1;
+  }
+}
+bool is_right_associative(TokenType type) {
+  return type == TokenType::power;
+}
+
 
 
 
@@ -161,18 +179,19 @@ std::string read_file(char* input_file) {
 std::vector<Token> tokenize(std::string source) {
   std::vector<Token> tokens;
   std::string b; // buffer
+  int index = 0;
 
-  while (peek_char(source).has_value()) {
+  while (peek_char(source, index).has_value()) {
     // first check if its a whitespace, if so then ignore it
-    if (std::isspace(peek_char(source).value())) { // space
-      consume_char(source);
-    } else if (peek_char(source).value() == 0x0A) { // end of line
-      consume_char(source);
+    if (std::isspace(peek_char(source, index).value())) { // space
+      consume_char(source, index);
+    } else if (peek_char(source, index).value() == 0x0A) { // end of line
+      consume_char(source, index);
     // then check for keywords
-    } else if (std::isalpha(peek_char(source).value())) {
-      b.push_back(consume_char(source));
-      while (peek_char(source).has_value() && std::isalnum(peek_char(source).value())) {
-        b.push_back(consume_char(source));
+    } else if (std::isalpha(peek_char(source, index).value())) {
+      b.push_back(consume_char(source, index));
+      while (peek_char(source, index).has_value() && std::isalnum(peek_char(source, index).value())) {
+        b.push_back(consume_char(source, index));
       }
       // data type classes
       // TODO: make types semi-direct: "null0", "bool1", "int(2^(3-6))", "flt64", "chr8", "str(2^(4-6))"
@@ -239,11 +258,11 @@ std::vector<Token> tokenize(std::string source) {
         b.clear();
       }
     // then check for character strings
-    } else if (peek_char(source).value() == '"') { // string
-      consume_char(source);
-      while (peek_char(source).has_value() && peek_char(source).value() != '"') {
-        if (peek_char(source).value() != EOF) {
-          b.push_back(consume_char(source));
+    } else if (peek_char(source, index).value() == '"') { // string
+      consume_char(source, index);
+      while (peek_char(source, index).has_value() && peek_char(source, index).value() != '"') {
+        if (peek_char(source, index).value() != EOF) {
+          b.push_back(consume_char(source, index));
         } else {
           std::cerr << "Error: String was never closed off" << std::endl;
           exit(1);
@@ -251,126 +270,130 @@ std::vector<Token> tokenize(std::string source) {
         tokens.push_back( { .type = TokenType::str_lit, .value = b } );
         b.clear();
       }
-      consume_char(source);
+      consume_char(source, index);
       tokens.push_back( { .type = TokenType::str_lit, .value = b } );
       b.clear();
       continue;
     // then check for numbers
-    } else if (std::isdigit(peek_char(source).value())) { // number
-      b.push_back(consume_char(source));
-      while (peek_char(source).has_value() && std::isdigit(peek_char(source).value())) {
-        b.push_back(consume_char(source));
+    } else if (std::isdigit(peek_char(source, index).value())) { // number
+      b.push_back(consume_char(source, index));
+      while (peek_char(source, index).has_value() && std::isdigit(peek_char(source, index).value())) {
+        b.push_back(consume_char(source, index));
       }
       tokens.push_back( { .type = TokenType::int_lit, .value = b } );
       b.clear();
     // then check for single character symbols
-    } else if (peek_char(source).value() == '(') {
-      consume_char(source);
+    } else if (peek_char(source, index).value() == '(') {
+      consume_char(source, index);
       tokens.push_back( { .type = TokenType::parentheses_open } );
-    } else if (peek_char(source).value() == ')') {
-      consume_char(source);
+    } else if (peek_char(source, index).value() == ')') {
+      consume_char(source, index);
       tokens.push_back( { .type = TokenType::parentheses_close } );
-    } else if (peek_char(source).value() == ',') {
-      consume_char(source);
+    } else if (peek_char(source, index).value() == ',') {
+      consume_char(source, index);
       tokens.push_back( { .type = TokenType::comma } );
-    } else if (peek_char(source).value() == ':') {
-      consume_char(source);
+    } else if (peek_char(source, index).value() == ':') {
+      consume_char(source, index);
       tokens.push_back( { .type = TokenType::colon } );
-    } else if (peek_char(source).value() == ';') {
-      consume_char(source);
+    } else if (peek_char(source, index).value() == ';') {
+      consume_char(source, index);
       tokens.push_back( { .type = TokenType::semicolon } );
-    } else if (peek_char(source).value() == '.') {
-      consume_char(source);
+    } else if (peek_char(source, index).value() == '.') {
+      consume_char(source, index);
       tokens.push_back( { .type = TokenType::period } );
-    } else if (peek_char(source).value() == '+') {
-      consume_char(source);
+    } else if (peek_char(source, index).value() == '+') {
+      consume_char(source, index);
       tokens.push_back( { .type = TokenType::plus } );
-    } else if (peek_char(source).value() == '-') {
-      consume_char(source);
+    } else if (peek_char(source, index).value() == '-') {
+      consume_char(source, index);
       tokens.push_back( { .type = TokenType::minus } );
-    // TODO: imclement multiplication by juxtaposition of two expressions properly, for now its * since prototype implementation of it cause it to happen even upon variable declaration and it multiplied itself indefinitely
-    } else if (peek_char(source).value() == '*') {
-      consume_char(source);
+    // TODO: implement multiplication by juxtaposition of two expressions properly, for now its * since prototype implementation of it cause it to happen even upon variable declaration and it multiplied itself indefinitely
+    } else if (peek_char(source, index).value() == '*') {
+      consume_char(source, index);
       tokens.push_back( { .type = TokenType::mult } );
-    } else if (peek_char(source).value() == '/') {
-      consume_char(source);
+    } else if (peek_char(source, index).value() == '/') {
+      consume_char(source, index);
       tokens.push_back( { .type = TokenType::div } );
-    } else if (peek_char(source).value() == '^') {
-      consume_char(source);
+    } else if (peek_char(source, index).value() == '%') {
+      consume_char(source, index);
+      tokens.push_back( { .type = TokenType::modulo } );
+    } else if (peek_char(source, index).value() == '^') {
+      consume_char(source, index);
       tokens.push_back( { .type = TokenType::power } );
-    } else if (peek_char(source).value() == '=') {
-      consume_char(source);
+    } else if (peek_char(source, index).value() == '=') {
+      consume_char(source, index);
       tokens.push_back( { .type = TokenType::equals } );
-    } else if (peek_char(source).value() == '<') {
-      consume_char(source);
+    } else if (peek_char(source, index).value() == '<') {
+      consume_char(source, index);
       tokens.push_back( { .type = TokenType::less } );
-    } else if (peek_char(source).value() == '>') {
-      consume_char(source);
+    } else if (peek_char(source, index).value() == '>') {
+      consume_char(source, index);
       tokens.push_back( { .type = TokenType::more } );
-    } else if (peek_char(source).value() == '!') {
-      consume_char(source);
+    } else if (peek_char(source, index).value() == '!') {
+      consume_char(source, index);
       tokens.push_back( { .type = TokenType::excl } );
-    } else if (peek_char(source).value() == '&') {
-      consume_char(source);
+    } else if (peek_char(source, index).value() == '&') {
+      consume_char(source, index);
       tokens.push_back( { .type = TokenType::et } );
-    } else if (peek_char(source).value() == '|') {
-      consume_char(source);
+    } else if (peek_char(source, index).value() == '|') {
+      consume_char(source, index);
       tokens.push_back( { .type = TokenType::pipe } );
-    } else if (peek_char(source).value() == '$') {
-      consume_char(source);
+    } else if (peek_char(source, index).value() == '$') {
+      consume_char(source, index);
       tokens.push_back( { .type = TokenType::dollar } );
-    } else if (peek_char(source).value() == '[') {
-      consume_char(source);
+    } else if (peek_char(source, index).value() == '[') {
+      consume_char(source, index);
       tokens.push_back( { .type = TokenType::bracket_open } );
-    } else if (peek_char(source).value() == ']') {
-      consume_char(source);
+    } else if (peek_char(source, index).value() == ']') {
+      consume_char(source, index);
       tokens.push_back( { .type = TokenType::bracket_close } );
-    } else if (peek_char(source).value() == '#') {
-      consume_char(source);
-      tokens.push_back( { .type = TokenType::octothorpe } );
-    } else if (peek_char(source).value() == 0x5C) { // '\'
-      consume_char(source);
+    } else if (peek_char(source, index).value() == 0x5C) { // '\'
+      consume_char(source, index);
       tokens.push_back( { .type = TokenType::ansi_escape } );
-    // then check for multi character symbols
-    } else if (std::ispunct(peek_char(source).value())) { // symbol(s)
-      while (peek_char(source).has_value() && std::isgraph(peek_char(source).value())) {
-        b.push_back(consume_char(source));
-      }
-      if (b == "<=") {
-        tokens.push_back( { .type = TokenType::lessquals } );
-        b.clear();
-      } else if (b == ">=") {
-        tokens.push_back( { .type = TokenType::morequals } );
-        b.clear();
-      } else if (b == "->") {
-        tokens.push_back( { .type = TokenType::returns } );
-        b.clear();
-      } else if (b == "<-") {
-        tokens.push_back( { .type = TokenType::gets } );
-        b.clear();
-      }
+    } else if (peek_char(source, index).value() == '#') { // comment lasts until another #, newline, or end of file
+      consume_char(source, index);
+      while (peek_char(source, index).has_value() && peek_char(source, index).value() != '#' && peek_char(source, index).value() != '\n')
+        consume_char(source, index);
+      if (peek_char(source, index).has_value() && peek_char(source, index).value() == '#') consume_char(source, index);
+    // multi character symbols
+    //} else if (std::ispunct(peek_char(source, index).value())) { // symbol(s)
+    //  while (peek_char(source, index).has_value() && std::isgraph(peek_char(source, index).value())) {
+    //    b.push_back(consume_char(source, index));
+    //  }
+    //  if (b == "<=") {
+    //    tokens.push_back( { .type = TokenType::lessquals } );
+    //    b.clear();
+    //  } else if (b == ">=") {
+    //    tokens.push_back( { .type = TokenType::morequals } );
+    //    b.clear();
+    //  } else if (b == "->") {
+    //    tokens.push_back( { .type = TokenType::returns } );
+    //    b.clear();
+    //  } else if (b == "<-") {
+    //    tokens.push_back( { .type = TokenType::gets } );
+    //    b.clear();
+    //  }
     // if neither matched, throw an error
     } else {
-      std::cerr << "Error: Unable to handle character at " << std::endl;
+      std::cerr << "Error: Unable to handle character at " << index << std::endl;
       exit(1);
     }
   }
-  index = 0;
   return tokens;
 }
 
 
 
-std::optional<NodeTerm*> parse_term(std::vector<Token> tokens) {
-  if (peek_token(tokens).has_value() && peek_token(tokens).value().type == TokenType::int_lit) {
+std::optional<NodeTerm*> parse_term(std::vector<Token>& tokens, int& index) {
+  if (peek_token(tokens, index).has_value() && peek_token(tokens, index).value().type == TokenType::int_lit) {
     auto node_term_int_lit = allocator.alloc<NodeTermIntLit>();
-    node_term_int_lit->int_lit = consume_token(tokens);
+    node_term_int_lit->int_lit = consume_token(tokens, index);
     auto term = allocator.alloc<NodeTerm>();
     term->var = node_term_int_lit;
     return term;
-  } else if (peek_token(tokens).has_value() && peek_token(tokens).value().type == TokenType::ident) {
+  } else if (peek_token(tokens, index).has_value() && peek_token(tokens, index).value().type == TokenType::ident) {
     auto node_term_ident = allocator.alloc<NodeTermIdent>();
-    node_term_ident->ident = consume_token(tokens);
+    node_term_ident->ident = consume_token(tokens, index);
     auto term = allocator.alloc<NodeTerm>();
     term->var = node_term_ident;
     return term;
@@ -378,69 +401,119 @@ std::optional<NodeTerm*> parse_term(std::vector<Token> tokens) {
     return {};
   }
 }
-std::optional<NodeExpr*> parse_expr(std::vector<Token> tokens) {
-  if (auto term = parse_term(tokens)) {
-    if (peek_token(tokens).has_value() && peek_token(tokens).value().type == TokenType::plus) {
-      auto bin_expr = allocator.alloc<NodeBinExpr>();
-      auto bin_expr_add = allocator.alloc<NodeBinExprAdd>();
-      auto ls_expr = allocator.alloc<NodeExpr>();
-      ls_expr->var = term.value();
-      bin_expr_add->ls = ls_expr;
-      consume_token(tokens);
-      if (auto rs = parse_expr(tokens)) {
-        bin_expr_add->rs = rs.value();
-        bin_expr->var = bin_expr_add;
-        auto expr = allocator.alloc<NodeExpr>();
-        expr->var = bin_expr;
-        return expr;
-      } else {
-        std::cerr << "Error: Expected expression for `+` operator" << std::endl;
+std::optional<NodeExpr*> parse_bin_expr(std::vector<Token>& tokens, int& index, int min_prec = 0) {
+  auto lhs_term = parse_term(tokens, index);
+  if (!lhs_term) return {};
+
+  auto lhs_expr = allocator.alloc<NodeExpr>();
+  lhs_expr->var = lhs_term.value();
+
+  while (peek_token(tokens, index).has_value()) {
+    TokenType tok_type = peek_token(tokens, index).value().type;
+    int prec = get_precedence(tok_type);
+
+    if (prec < min_prec) break;
+
+    consume_token(tokens, index);
+    TokenType op = tok_type;
+
+    int next_min_prec = prec;
+    if (!is_right_associative(op)) next_min_prec += 1;
+
+    auto rhs_expr = parse_bin_expr(tokens, index, next_min_prec);
+    if (!rhs_expr) {
+        std::cerr << "Error: Expected expression after operator\n";
         exit(1);
-      }
-    } else if (peek_token(tokens).has_value() && peek_token(tokens).value().type == TokenType::minus) {
-      std::cerr << "Error: Operator `-` not implemented yet" << std::endl;
-      exit(1);
-    } else {
-      auto expr = allocator.alloc<NodeExpr>();
-      expr->var = term.value();
-      return expr;
     }
-  } else {
-    return {};
- }
+
+    auto bin_expr = allocator.alloc<NodeBinExpr>();
+    if (op == TokenType::plus) {
+      auto node = allocator.alloc<NodeBinExprAdd>();
+      node->ls = lhs_expr;
+      node->rs = rhs_expr.value();
+      bin_expr->var = node;
+    } else if (op == TokenType::minus) {
+      auto node = allocator.alloc<NodeBinExprSub>();
+      node->ls = lhs_expr;
+      node->rs = rhs_expr.value();
+      bin_expr->var = node;
+    } else if (op == TokenType::mult) {
+      auto node = allocator.alloc<NodeBinExprMult>();
+      node->ls = lhs_expr;
+      node->rs = rhs_expr.value();
+      bin_expr->var = node;
+    } else if (op == TokenType::div) {
+      auto node = allocator.alloc<NodeBinExprDiv>();
+      node->ls = lhs_expr;
+      node->rs = rhs_expr.value();
+      bin_expr->var = node;
+    } else if (op == TokenType::modulo) {
+      auto node = allocator.alloc<NodeBinExprMod>();
+      node->ls = lhs_expr;
+      node->rs = rhs_expr.value();
+      bin_expr->var = node;
+    } else if (op == TokenType::power) {
+      std::cerr << "Error: Power operator not implemented yet\n";
+      exit(1);
+    }
+
+    lhs_expr = allocator.alloc<NodeExpr>();
+    lhs_expr->var = bin_expr;
+  }
+
+  return lhs_expr;
 }
-std::optional<NodeStmt*> parse_stmt(std::vector<Token> tokens) {
+std::optional<NodeExpr*> parse_expr(std::vector<Token>& tokens, int& index) {
+  return parse_bin_expr(tokens, index, 0);
+  // if (auto term = parse_term(tokens, index)) {
+  //   if (peek_token(tokens, index).has_value() &&
+  //       (peek_token(tokens, index).value().type == TokenType::plus ||
+  //        peek_token(tokens, index).value().type == TokenType::minus ||
+  //        peek_token(tokens, index).value().type == TokenType::mult ||
+  //        peek_token(tokens, index).value().type == TokenType::div ||
+  //        peek_token(tokens, index).value().type == TokenType::power) ) {
+  //     return parse_bin_expr(tokens, index);
+  //   } else {
+  //     auto expr = allocator.alloc<NodeExpr>();
+  //     expr->var = term.value();
+  //     return expr;
+  //   }
+  // } else {
+  //   return {};
+  // }
+}
+std::optional<NodeStmt*> parse_stmt(std::vector<Token>& tokens, int& index) {
   auto stmt = allocator.alloc<NodeStmt>();
-  if (peek_token(tokens).has_value() && peek_token(tokens).value().type == TokenType::exit) {
-    consume_token(tokens);
+  if (peek_token(tokens, index).has_value() && peek_token(tokens, index).value().type == TokenType::exit) {
+    consume_token(tokens, index);
     auto stmt_exit = allocator.alloc<NodeStmtExit>();
-    if (auto node_expr = parse_expr(tokens)) {
+    if (auto node_expr = parse_expr(tokens, index)) {
       stmt_exit->expr = node_expr.value();
     } else {
       std::cerr << "Error: Invalid expression" << std::endl;
       exit(1);
     }
     stmt->var = stmt_exit;
-  } else if (peek_token(tokens).has_value() && peek_token(tokens).value().type == TokenType::_int && peek_token(tokens, 1).has_value() && peek_token(tokens, 1).value().type == TokenType::ident) {
-    consume_token(tokens);
+  } else if (peek_token(tokens, index).has_value() && peek_token(tokens, index).value().type == TokenType::_int && peek_token(tokens, index, 1).has_value() && peek_token(tokens, index, 1).value().type == TokenType::ident) {
+    consume_token(tokens, index);
     auto stmt_var = allocator.alloc<NodeStmtVar>();
-    stmt_var->ident = consume_token(tokens);
+    stmt_var->ident = consume_token(tokens, index);
 
-    if (auto expr = parse_expr(tokens)) {
+    if (auto expr = parse_expr(tokens, index)) {
       stmt_var->expr = expr.value();
     } else {
       std::cerr << "Error: Invalid expression" << std::endl;
       exit(1);
     }
     stmt->var = stmt_var;
-  } else if (peek_token(tokens).has_value() && peek_token(tokens).value().type == TokenType::_flt && peek_token(tokens, 1).has_value() && peek_token(tokens, 1).value().type == TokenType::ident) {
+  } else if (peek_token(tokens, index).has_value() && peek_token(tokens, index).value().type == TokenType::_flt && peek_token(tokens, index, 1).has_value() && peek_token(tokens, index, 1).value().type == TokenType::ident) {
     std::cerr << "Error: Floating point number data type class not implemented yet" << std::endl;
     exit(1);
-  } else if (peek_token(tokens).has_value() && peek_token(tokens).value().type == TokenType::_str && peek_token(tokens, 1).has_value() && peek_token(tokens, 1).value().type == TokenType::ident) {
+  } else if (peek_token(tokens, index).has_value() && peek_token(tokens, index).value().type == TokenType::_str && peek_token(tokens, index, 1).has_value() && peek_token(tokens, index, 1).value().type == TokenType::ident) {
     std::cerr << "Error: Character string data type class not implemented yet" << std::endl;
     exit(1);
   } else if ( // null
-    peek_token(tokens).has_value() && peek_token(tokens).value().type == TokenType::_null) {
+    peek_token(tokens, index).has_value() && peek_token(tokens, index).value().type == TokenType::_null) {
 
     std::cerr << "Error: Null data type class not implemented yet" << std::endl;
     exit(1);
@@ -450,9 +523,10 @@ std::optional<NodeStmt*> parse_stmt(std::vector<Token> tokens) {
 }
 std::optional<NodeProg> parse_program(std::vector<Token> tokens) {
   NodeProg prog;
+  int index = 0;
 
-  while (peek_token(tokens).has_value()) {
-    if (auto stmt = parse_stmt(tokens)) {
+  while (peek_token(tokens, index).has_value()) {
+    if (auto stmt = parse_stmt(tokens, index)) {
       prog.stmts.push_back(*stmt.value());
     } else {
       std::cerr << "Error: Invalid statement" << std::endl;
@@ -497,14 +571,50 @@ void gen_bin_expr(const NodeBinExpr* bin_expr, std::stringstream& output) {
     output << pop("r11");
     output << "    add r10, r11\n";
     output << push("r10");
-  }
-  else if (std::holds_alternative<NodeBinExprSub*>(bin_expr->var)) {
-    std::cerr << "Error: operator `-` not implemented yet\n";
-    exit(1);
-  }
-  else if (std::holds_alternative<NodeBinExprMult*>(bin_expr->var)) {
-    std::cerr << "Error: operator `*` not implemented yet\n";
-    exit(1);
+  } else if (std::holds_alternative<NodeBinExprSub*>(bin_expr->var)) {
+    auto* sub = std::get<NodeBinExprSub*>(bin_expr->var);
+
+    gen_expr(sub->ls, output);
+    gen_expr(sub->rs, output);
+
+    output << pop("r11");
+    output << pop("r10");
+    output << "    sub r10, r11\n";
+    output << push("r10");
+  } else if (std::holds_alternative<NodeBinExprMult*>(bin_expr->var)) {
+    auto* mult = std::get<NodeBinExprMult*>(bin_expr->var);
+
+    gen_expr(mult->ls, output);
+    gen_expr(mult->rs, output);
+
+    output << pop("r10");
+    output << pop("r11");
+    output << "    mul r10, r11\n";
+    output << push("r10");
+  } else if (std::holds_alternative<NodeBinExprDiv*>(bin_expr->var)) {
+    auto* div = std::get<NodeBinExprDiv*>(bin_expr->var);
+
+    gen_expr(div->ls, output);
+    gen_expr(div->rs, output);
+
+    output << pop("r11");
+    output << pop("r10");
+    output << "    mov rax, r10\n";
+    output << "    xor rdx, rdx\n";
+    output << "    div r11\n";
+    output << push("rax");
+  } else if (std::holds_alternative<NodeBinExprMod*>(bin_expr->var)) {
+    auto* modulo = std::get<NodeBinExprMod*>(bin_expr->var);
+
+    gen_expr(modulo->ls, output);
+    gen_expr(modulo->rs, output);
+
+    output << pop("r11");
+    output << pop("r10");
+    output << "    mov rax, r10\n";
+    output << "    xor rdx, rdx\n";
+    output << "    div r11\n";
+    output << push("rdx");
   }
 }
 void gen_expr(const NodeExpr* expr, std::stringstream& output) {

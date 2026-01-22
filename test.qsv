@@ -1,2 +1,7 @@
-int x 10 + 5 + 7 + 2 + 3
-exit x
+int a 35 + 34
+int b a * 2
+int c b / 6
+int d c - 2
+int e d % 5
+# should exit with 1
+exit y
