@@ -19,50 +19,54 @@ ArenaAlloc allocator(1024 * 1024 * 8);
 // lexer tokens
 enum class TokenType {
   // literals
+  bool_lit,
   int_lit,
   flt_lit,
+  chr_lit,
   str_lit,
   ident,
   // data type classes
+  _null,
   _bool,
   _int,
   _flt,
+  _chr,
   _str,
-  _null,
   // functional statements and calls
-  stmt_load,   // <filepath>     - loads a .hg generic header, similar to #include <...> in c
+  stmt_load,   // <filepath>     - loads a .hg generic header, similar to #include <...> in C
   stmt_exit,   // <int8>         - exits program with a mandatory exit code
   stmt_return, // [<expression>] - returns to the function call with the optional expression given
+  stmt_break,  //                - breaks out of whatever scope its in
   // functions
-  func,              //    - keyword defines a function
-  colon,             // :  - opens a functions or a logical statements scope
-  returns,           // -> - defines the type class the function returns
-  gets,              // <- - gets the value a function returns
-  period,            // .  - closes a functions scope
+  func,    //    - keyword defines a function
+  returns, // -> - defines the type class the function returns
+  gets,    // <- - gets the value a function returns
+  period,  // .  - closes a functions scope
   // logical statements and loops
-  stmt_if,        // if a < 10: "a is less than 10\n",/;
-  stmt_elsif,     // elsif a !< 10 & b < 10: "while a is not, but b is less than 10\n",/;
+  stmt_if,        // if [a < 10]: "a is less than 10\n",/;
+  stmt_elsif,     // elsif [a !< 10 & b < 10]: "while a is not, but b is less than 10\n",/;
   stmt_else,      // else: "both a and b are at least 10\n";
-  stmt_while,     // while x < 10: x + 1;
-  stmt_for,       // TODO: plan syntax for "for" loops
+  stmt_while,     // while [x < 10]: x + 1;
+                  // no "for" loop, as i cant plan out decent syntax for it, the best i could come up with would have been this:
+                  // for (int i 1, i + 1) [i < 10]: "hello world\n";
+                  // and this is just straight up ugly as fuck and dumb, so no "for" loops in quicksilver, the user needs to do recursion like in haskell or use a "while" loop instead
   stmt_select,    // select <input expr> from:
-  stmt_from,      //   case = "foo": "bar\n",
-  stmt_case,      //   case < 7 | case > 17: "not between 7 and 17\n",
+  stmt_from,      //   case "foo": "bar\n",
+  stmt_case,      //   case "bar": "baz\n",
   stmt_otherwise, //   otherwise: "none matched\n";
   semicolon,      // ; - closes statement scopes
-  // logical expressions
-  _true,
-  _false,
   // logical symbols
-  equals,    // =
-  less,      // <
-  lessquals, // <=
-  more,      // >
-  morequals, // >=
-  excl,      // !
-  et,        // & "and"
-  pipe,      // | "or"
-  dollar,    // $ "xor"
+  bracket_open,  // [ - opens boolean scope
+  equals,        // =
+  less,          // <
+  lessquals,     // <=
+  more,          // >
+  morequals,     // >=
+  excl,          // !
+  et,            // & "and"
+  pipe,          // | "or"
+  dollar,        // $ "xor"
+  bracket_close, // ] - closes boolean scope
   // math symbols
   plus,   // +
   minus,  // -
@@ -70,13 +74,11 @@ enum class TokenType {
   div,    // /
   modulo, // %
   power,  // ^
-  // misc symbols
-  comma,             // , - separates function inputs and statement subscopes
+  // generic symbols
   parentheses_open,  // ( - opens a functions input list
   parentheses_close, // ) - closes a functions input list
-  ansi_escape,       // \ - used for ansi escape sequences
-  bracket_open,      // [ - used for printing the value of a variable in a string
-  bracket_close,     // ]
+  colon,             // :  - opens a functions or a logical statements scope
+  comma              // , - separates function inputs and statement subscopes
 };
 
 struct Token {
@@ -89,8 +91,9 @@ struct Token {
 // parser nodes
 struct NodeExpr;
 struct NodeTermIntLit { Token int_lit; };
+struct NodeTermStrLit { Token str_lit; };
 struct NodeTermIdent { Token ident; };
-struct NodeTerm { std::variant<NodeTermIntLit*, NodeTermIdent*> var; };
+struct NodeTerm { std::variant<NodeTermIntLit*, NodeTermStrLit*, NodeTermIdent*> var; };
 struct NodeBinExprAdd { NodeExpr* ls; NodeExpr* rs; };
 struct NodeBinExprSub { NodeExpr* ls; NodeExpr* rs; };
 struct NodeBinExprMult { NodeExpr* ls; NodeExpr* rs; };
@@ -232,9 +235,6 @@ std::vector<Token> tokenize(std::string source) {
       } else if (b == "while") {
         tokens.push_back( { .type = TokenType::stmt_while } );
         b.clear();
-      } else if (b == "for") {
-        tokens.push_back( { .type = TokenType::stmt_for } );
-        b.clear();
       } else if (b == "select") {
         tokens.push_back( { .type = TokenType::stmt_select } );
         b.clear();
@@ -248,10 +248,10 @@ std::vector<Token> tokenize(std::string source) {
         tokens.push_back( { .type = TokenType::stmt_otherwise } );
         b.clear();
       } else if (b == "true") {
-        tokens.push_back( { .type = TokenType::_true } );
+        tokens.push_back( { .type = TokenType::bool_lit, .value = "true" } );
         b.clear();
       } else if (b == "false") {
-        tokens.push_back( { .type = TokenType::_false } );
+        tokens.push_back( { .type = TokenType::bool_lit, .value = "false" } );
         b.clear();
       } else { // identifier
         tokens.push_back( { .type = TokenType::ident, .value = b } );
@@ -341,38 +341,29 @@ std::vector<Token> tokenize(std::string source) {
     } else if (peek_char(source, index).value() == '$') {
       consume_char(source, index);
       tokens.push_back( { .type = TokenType::dollar } );
-    } else if (peek_char(source, index).value() == '[') {
-      consume_char(source, index);
-      tokens.push_back( { .type = TokenType::bracket_open } );
-    } else if (peek_char(source, index).value() == ']') {
-      consume_char(source, index);
-      tokens.push_back( { .type = TokenType::bracket_close } );
-    } else if (peek_char(source, index).value() == 0x5C) { // '\'
-      consume_char(source, index);
-      tokens.push_back( { .type = TokenType::ansi_escape } );
     } else if (peek_char(source, index).value() == '#') { // comment lasts until another #, newline, or end of file
       consume_char(source, index);
       while (peek_char(source, index).has_value() && peek_char(source, index).value() != '#' && peek_char(source, index).value() != '\n')
         consume_char(source, index);
       if (peek_char(source, index).has_value() && peek_char(source, index).value() == '#') consume_char(source, index);
     // multi character symbols
-    //} else if (std::ispunct(peek_char(source, index).value())) { // symbol(s)
-    //  while (peek_char(source, index).has_value() && std::isgraph(peek_char(source, index).value())) {
-    //    b.push_back(consume_char(source, index));
-    //  }
-    //  if (b == "<=") {
-    //    tokens.push_back( { .type = TokenType::lessquals } );
-    //    b.clear();
-    //  } else if (b == ">=") {
-    //    tokens.push_back( { .type = TokenType::morequals } );
-    //    b.clear();
-    //  } else if (b == "->") {
-    //    tokens.push_back( { .type = TokenType::returns } );
-    //    b.clear();
-    //  } else if (b == "<-") {
-    //    tokens.push_back( { .type = TokenType::gets } );
-    //    b.clear();
-    //  }
+    } else if (std::ispunct(peek_char(source, index).value())) { // symbol(s)
+      while (peek_char(source, index).has_value() && std::isgraph(peek_char(source, index).value())) {
+        b.push_back(consume_char(source, index));
+      }
+      if (b == "<=") {
+        tokens.push_back( { .type = TokenType::lessquals } );
+        b.clear();
+      } else if (b == ">=") {
+        tokens.push_back( { .type = TokenType::morequals } );
+        b.clear();
+      } else if (b == "->") {
+        tokens.push_back( { .type = TokenType::returns } );
+        b.clear();
+      } else if (b == "<-") {
+        tokens.push_back( { .type = TokenType::gets } );
+        b.clear();
+      }
     // if neither matched, throw an error
     } else {
       std::cerr << "Error: Unable to handle character at " << index << std::endl;

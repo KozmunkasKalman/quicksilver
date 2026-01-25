@@ -3,5 +3,6 @@ int b a * 2
 int c b / 6
 int d c - 2
 int e d % 5
-# should exit with 1
-exit y
+"\[e]\n"
+# should print out 1
+exit 0

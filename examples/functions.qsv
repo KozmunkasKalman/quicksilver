@@ -1,0 +1,14 @@
+func do_maths(int in) -> int:
+    int a in * 10
+    int b a % 3
+    int c b * 5
+    int d c % 7
+    return d
+.
+
+func init -> null: # optionally you could put () after init for arguments
+    int x 7
+    int y <- do_maths(x)
+    "\[y]\n"
+    exit 0
+.
